@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import "./App.css";
-import LandingPage from "./pages/landing/landing";
+import { Outlet } from "react-router";
 
 function App() {
   const [gameId, setGameId] = useState<string | null>(null);
@@ -29,7 +29,7 @@ function App() {
 
   return (
     <>
-      <LandingPage />
+      <Outlet />
     </>
   );
 }
