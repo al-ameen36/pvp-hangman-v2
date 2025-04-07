@@ -1,6 +1,8 @@
 import "./createPost.js";
 import { Devvit, useChannel, useState, useWebView } from "@devvit/public-api";
 import type { DevvitMessage, WebViewMessage } from "./message.js";
+import { createGame, getRedisGame, joinGame, setRedisGame } from "./utils.js";
+import { Game } from "./types.js";
 
 Devvit.configure({
   redditAPI: true,
@@ -21,40 +23,20 @@ Devvit.addCustomPostType({
   name: "PVP Hangman",
   height: "tall",
   render: (context) => {
-    const key = (postId: string | undefined): string => {
-      return `user_turn_state:${postId}`;
-    };
-
-    const [gameId, setGameId] = useState(async () => {
-      const state = await context.redis.get(key(context.postId));
-      return state || "me";
-    });
-
-    // // Store the progress state keyed by post ID
-    // const [lastTurn, setLastTurn] = useState(async () => {
-    //   const state = await context.redis.get(key(context.postId));
-    //   return state || "me";
-    // });
-
-    // const mySession = generateSessionId();
-
-    // TODO
-    // Generate game id
-    // allow user to join game
-
-    // const [me] = useState<UserRecord | null>(async () => {
-    //   const user = await context.reddit.getCurrentUser();
-    //   if (!user) return null;
-    //   return {
-    //     id: user.id,
-    //     name: user.username,
-    //   };
-    // });
+    const [game, setGame] = useState<Game | null>(null);
 
     const progressChannel = useChannel<any>({
       name: "join_game",
-      onMessage: (msg) => {
+      onMessage: (msg: { game: Game }) => {
         console.log(msg);
+        setGame(msg.game);
+
+        // Notify player 1
+        if (game?.gameId == msg.game.gameId)
+          webView.postMessage({
+            type: "opponent_joined",
+            data: { game: msg.game },
+          });
       },
       onSubscribed: async () => {},
     });
@@ -64,19 +46,27 @@ Devvit.addCustomPostType({
       url: "index.html",
 
       // Handle messages sent from the web view
-      // async onMessage(message, webView) {
-      async onMessage(message) {
+      async onMessage(message, webView) {
         switch (message.type) {
           case "webViewReady":
             console.log("Game Ready");
             break;
-          case "create_game":
-            setGameId(generateGameId());
-            console.log(gameId);
 
+          case "create_game":
+            const createdGame = await createGame(context);
+            setGame(createdGame);
             webView.postMessage({
               type: "game_created",
-              data: { gameId },
+              data: { game: createdGame },
+            });
+            break;
+
+          case "join_game":
+            const joinedGame = await joinGame(context, message.data.gameId);
+            setGame(joinedGame);
+            webView.postMessage({
+              type: "game_joined",
+              data: { game: joinedGame },
             });
             break;
 

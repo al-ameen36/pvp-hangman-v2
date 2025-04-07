@@ -1,9 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import "./App.css";
-import { Outlet } from "react-router";
+import { Outlet, useNavigate } from "react-router";
+import { useAppDispatch } from "./store/store";
+import { setGame } from "./store/slices/app";
 
 function App() {
-  const [gameId, setGameId] = useState<string | null>(null);
+  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
 
   useEffect(() => {
     addEventListener("load", () => {
@@ -16,11 +19,18 @@ function App() {
 
         switch (message.type) {
           case "game_created":
-            setGameId(message.data.gameId);
-            console.log("Game created:", message.data.gameId);
+            dispatch(setGame(message.data.game));
+            console.log("Game created: ", message.data.game);
             break;
-          case "join_game":
-            console.log("Game created:", message.data.gameId, gameId);
+          case "game_joined":
+            dispatch(setGame(message.data.game));
+            console.log("Game joined: ", message.data.game);
+            navigate("/word");
+            break;
+          case "opponent_joined":
+            dispatch(setGame(message.data.game));
+            console.log("Game joined: ", message.data.game);
+            navigate("/word");
             break;
         }
       }
