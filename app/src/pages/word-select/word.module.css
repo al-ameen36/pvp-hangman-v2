@@ -1,0 +1,30 @@
+.landing_container {
+  display: grid;
+  gap: 2rem;
+  min-height: 100vh;
+  place-content: center;
+  place-items: center;
+}
+
+.landing_container > .landing_inner {
+  background-color: #222;
+  border-radius: 10px;
+  color: #fff;
+  display: grid;
+  gap: 1rem;
+  text-align: center;
+  max-width: var(--max-doc-size);
+  padding: 1rem;
+  width: var(--max-doc-size);
+}
+
+.landing_container button,
+.landing_container input {
+  width: 100%;
+}
+
+.landing_container input {
+  border-radius: 10px;
+  border: none;
+  padding: 1rem;
+}

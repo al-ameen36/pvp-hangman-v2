@@ -1,35 +1,16 @@
-import { Context } from "@devvit/public-api";
+import { Context, User } from "@devvit/public-api";
 import { Game } from "./types.js";
 
-// Game
-function generateGameId(): string {
+export function generateGameId(): string {
   return (
     Math.random().toString(36).substring(2, 6) +
-    "-" +
+    "_" +
     Date.now().toString(36).slice(-4)
   );
 }
 
-const toObject = (data: string) => JSON.parse(data);
-const toString = (data: any) => JSON.stringify(data);
-
-export const getRedisGame = async (context: Context, gameId: string) => {
-  const game = await context.redis.get(`game_${gameId}`);
-  if (!game) return null;
-  return toObject(game);
-};
-
-export const setRedisGame = async (context: Context, game: Game) => {
-  const newGame = await context.redis.set(
-    `game_${game.gameId}`,
-    toString(game)
-  );
-  return newGame;
-};
-
-export const createGame = async (context: Context) => {
+export const createGame = (currentUser: User) => {
   const gameId = generateGameId();
-  const currentUser = await context.reddit.getCurrentUser();
 
   if (currentUser) {
     const gameData: Game = {
@@ -37,35 +18,42 @@ export const createGame = async (context: Context) => {
       team1: {
         id: currentUser.id,
         username: currentUser.username,
+        word: null,
       },
       team2: null,
     };
 
-    await setRedisGame(context, gameData);
     return gameData;
   }
 
   return null;
 };
 
-export const joinGame = async (context: Context, gameId: string) => {
-  const game = await context.redis.get(`game_${gameId}`);
-  if (!game) return null;
-
-  const currentUser = await context.reddit.getCurrentUser();
-  if (currentUser) {
-    const gameData: Game = toObject(game);
-
-    // Prevent same user from joining as both players
-    if (gameData.team1?.id == currentUser.id) return null;
-    gameData.team2 = {
-      id: currentUser.id,
-      username: currentUser.username,
-    };
-
-    await setRedisGame(context, gameData);
-    return gameData;
-  }
+export const joinGame = async (currentUser: User, gameId: string) => {
+  console.log(gameId);
 
   return null;
 };
+
+// export const chooseWord = async (
+//   context: Context,
+//   gameId: string,
+//   word: string
+// ) => {
+//   const game = await context.redis.get(`game_${gameId}`);
+//   if (!game) return null;
+
+//   const currentUser = await context.reddit.getCurrentUser();
+//   if (currentUser) {
+//     const gameData: Game = toObject(game);
+
+//     // Assign word to the right player
+//     if (gameData.team1?.id == currentUser.id) gameData.team1.word = word;
+//     else if (gameData.team2?.id == currentUser.id) gameData.team2.word = word;
+//     else return null;
+
+//     return gameData;
+//   }
+
+//   return null;
+// };

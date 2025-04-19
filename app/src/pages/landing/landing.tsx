@@ -8,7 +8,6 @@ export default function LandingPage() {
     window.parent.postMessage(
       {
         type: "create_game",
-        data: { clicked: true },
       },
       "*"
     );
@@ -18,11 +17,12 @@ export default function LandingPage() {
     window.parent.postMessage(
       {
         type: "join_game",
-        data: { gameId },
+        data: { gameId: gameId?.trim() },
       },
       "*"
     );
   };
+
   return (
     <main className={styles.landing_container}>
       <h1>Hangman Challenge</h1>

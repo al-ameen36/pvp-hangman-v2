@@ -1,8 +1,16 @@
 import "./createPost.js";
-import { Devvit, useChannel, useState, useWebView } from "@devvit/public-api";
+import {
+  Devvit,
+  JSONValue,
+  useChannel,
+  User,
+  useState,
+  useWebView,
+  UseWebViewResult,
+} from "@devvit/public-api";
 import type { DevvitMessage, WebViewMessage } from "./message.js";
-import { createGame, getRedisGame, joinGame, setRedisGame } from "./utils.js";
-import { Game } from "./types.js";
+import { createGame, generateGameId, joinGame } from "./utils.js";
+import { ChannelMessage, Game, Player } from "./types.js";
 
 Devvit.configure({
   redditAPI: true,
@@ -10,72 +18,125 @@ Devvit.configure({
   realtime: true,
 });
 
-function generateGameId(): string {
-  return (
-    Math.random().toString(36).substring(2, 6) +
-    "-" +
-    Date.now().toString(36).slice(-4)
-  );
-}
-
 // Add a custom post type to Devvit
 Devvit.addCustomPostType({
   name: "PVP Hangman",
   height: "tall",
   render: (context) => {
     const [game, setGame] = useState<Game | null>(null);
-
-    const progressChannel = useChannel<any>({
-      name: "join_game",
-      onMessage: (msg: { game: Game }) => {
-        console.log(msg);
-        setGame(msg.game);
-
-        // Notify player 1
-        if (game?.gameId == msg.game.gameId)
-          webView.postMessage({
-            type: "opponent_joined",
-            data: { game: msg.game },
-          });
-      },
-      onSubscribed: async () => {},
+    const [currentUser] = useState(async () => {
+      return (await context.reddit.getCurrentUser()) ?? {};
     });
-    progressChannel.subscribe();
+
+    // Subscribe to events
+    const channel = useChannel({
+      name: "hangman_pvp_events",
+      onMessage: (message: ChannelMessage) => {
+        console.log(message);
+        if (message.data.gameId == game?.gameId) {
+          const user = currentUser as User;
+          switch (message.type) {
+            case "join":
+              if (game.team1?.id != user.id)
+                setGame((prev) => {
+                  return {
+                    ...(prev as Game),
+                    team2: { id: user.id, username: user.username, word: null },
+                  };
+                });
+              break;
+          }
+        }
+      },
+      onSubscribed: () => {
+        console.log("Subscribed");
+      },
+      onUnsubscribed: () => {
+        console.log("Unsubscribed");
+      },
+    });
+    channel.subscribe();
 
     const webView = useWebView<WebViewMessage, DevvitMessage>({
       url: "index.html",
-
       // Handle messages sent from the web view
       async onMessage(message, webView) {
-        switch (message.type) {
-          case "webViewReady":
-            console.log("Game Ready");
-            break;
+        // Save webview for use in channels
+        if (currentUser) {
+          const user = currentUser as User;
+          switch (message.type) {
+            case "webViewReady":
+              console.log("Game Ready");
+              break;
 
-          case "create_game":
-            const createdGame = await createGame(context);
-            setGame(createdGame);
-            webView.postMessage({
-              type: "game_created",
-              data: { game: createdGame },
-            });
-            break;
+            case "create_game":
+              const newGame = createGame(currentUser as User);
+              setGame(newGame);
 
-          case "join_game":
-            const joinedGame = await joinGame(context, message.data.gameId);
-            setGame(joinedGame);
-            webView.postMessage({
-              type: "game_joined",
-              data: { game: joinedGame },
-            });
-            break;
+              webView.postMessage({
+                type: "game_created",
+                data: {
+                  game: newGame,
+                },
+              });
+              break;
 
-          default:
-            console.error(`Unknown message type: ${message.type}`);
+            case "join_game":
+              const payload: Player = {
+                id: user.id,
+                username: user.username,
+                word: null,
+              };
+              let joiningTeam: { team1: Player } | { team2: Player } =
+                user.id == game?.team1?.id
+                  ? { team1: payload }
+                  : ({ team2: payload } as any);
+
+              const joinedGame = { ...game, ...(joiningTeam as any) };
+              setGame(joinedGame);
+
+              webView.postMessage({
+                type: "player_joined",
+                data: {
+                  game: joinedGame,
+                },
+              });
+              channel.send({
+                data: { gameId: message.data.gameId },
+                type: "join",
+              });
+              break;
+
+            case "choose_word":
+              let updatedTeam: { team1: Player } | { team2: Player } =
+                user.id == game?.team1?.id
+                  ? {
+                      team1: { ...game?.team1, word: message.data.word },
+                    }
+                  : ({
+                      team2: { ...game?.team2, word: message.data.word },
+                    } as any);
+
+              const updatedGame = { ...game, ...(updatedTeam as any) };
+              setGame(updatedGame);
+
+              webView.postMessage({
+                type: "player_ready",
+                data: {
+                  game: updatedGame,
+                },
+              });
+              break;
+
+            default:
+              console.error(`Unknown message type: ${message.type}`);
+          }
         }
       },
       onUnmount() {
+        // Clean up
         context.ui.showToast("Web view closed!");
+        channel.unsubscribe();
       },
     });
 

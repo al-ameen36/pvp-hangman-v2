@@ -1,4 +1,4 @@
-import { StrictMode, Suspense } from "react";
+import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.tsx";
@@ -8,6 +8,8 @@ import { HashRouter, Route, Routes } from "react-router";
 import LandingPage from "./pages/landing/landing.tsx";
 import { store } from "./store/store.ts";
 
+const WordPage = lazy(() => import("./pages/word-select/word.tsx"));
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <Suspense fallback={<Loader />}>
@@ -16,6 +18,7 @@ createRoot(document.getElementById("root")!).render(
           <Routes>
             <Route path="/" element={<App />}>
               <Route index element={<LandingPage />} />
+              <Route path="word" element={<WordPage />} />
             </Route>
           </Routes>
         </HashRouter>

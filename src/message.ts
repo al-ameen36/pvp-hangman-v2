@@ -9,5 +9,5 @@ export type WebViewMessage =
 export type DevvitMessage =
   | { type: "initialData"; data: any }
   | { type: "game_created"; data: { game: Game | null } }
-  | { type: "opponent_joined"; data: { game: Game | null } }
-  | { type: "game_joined"; data: { game: Game | null } };
+  | { type: "player_joined"; data: { game: Game | null } }
+  | { type: "player_ready"; data: { game: Game | null } };

@@ -1,7 +1,7 @@
 .container {
-  --uib-size: 70px;
-  --uib-color: black;
-  --uib-speed: 1.75s;
+  --uib-size: 80px;
+  --uib-color: white;
+  --uib-speed: 1.3s;
   display: flex;
   align-items: flex-end;
   padding-bottom: 20%;
